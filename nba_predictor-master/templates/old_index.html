@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NBA 2025 Predictions</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <h1>🏀 NBA 2025 Predicted Odds</h1>
+
+  <form method="get">
+    <label for="team">Filter by Team:</label>
+    <select name="team" onchange="this.form.submit()">
+      <option value="">-- All Teams --</option>
+      {% for team in teams %}
+        <option value="{{ team }}" {% if team == selected %}selected{% endif %}>{{ team }}</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Home</th>
+        <th>Home Win %</th>
+        <th>Home Odds</th>
+        <th>Away</th>
+        <th>Away Win %</th>
+        <th>Away Odds</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in data.itertuples() %}
+        <tr>
+          <td>{{ row.HOME_TEAM }}</td>
+          <td>{{ row.HOME_WIN_PCT }}</td>
+          <td>{{ row.HOME_ODDS }}</td>
+          <td>{{ row.AWAY_TEAM }}</td>
+          <td>{{ row.AWAY_WIN_PCT }}</td>
+          <td>{{ row.AWAY_ODDS }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

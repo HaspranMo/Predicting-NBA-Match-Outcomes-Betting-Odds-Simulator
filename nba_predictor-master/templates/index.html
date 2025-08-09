@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>NBA 2025 Predicted Odds</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .filter-container {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        select {
+            padding: 8px 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #333;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .home-team {
+            background-color: #e3f2fd;
+        }
+        .away-team {
+            background-color: #fff3e0;
+        }
+        .percentage {
+            font-weight: bold;
+        }
+        .odds {
+            color: #1976d2;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏀 NBA 2025 Predicted Odds</h1>
+
+    <div class="filter-container">
+        <label for="team">Filter by Team:</label>
+        <select id="team" onchange="filterTeam()">
+            <option value="All Teams" {% if not selected or selected == "All Teams" %}selected{% endif %}>All Teams</option>
+            {% for team in teams %}
+                <option value="{{ team }}" {% if selected == team %}selected{% endif %}>{{ team }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <table id="odds-table">
+        <thead>
+            <tr>
+                <th>Home Team</th>
+                <th>Home Win %</th>
+                <th>Home Odds</th>
+                <th>Away Team</th>
+                <th>Away Win %</th>
+                <th>Away Odds</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for _, row in data.iterrows() %}
+                <tr>
+                    <td class="home-team">{{ row['Home'] }}</td>
+                    <td class="percentage">{{ "%.1f"|format(row['Home Win %'] * 100) }}%</td>
+                    <td class="odds">{{ "%.2f"|format(row['Home Odds']) }}</td>
+                    <td class="away-team">{{ row['Away'] }}</td>
+                    <td class="percentage">{{ "%.1f"|format(row['Away Win %'] * 100) }}%</td>
+                    <td class="odds">{{ "%.2f"|format(row['Away Odds']) }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="margin-top: 20px; text-align: center; color: #666;">
+        <p>Total Predictions: {{ data|length }}</p>
+    </div>
+
+    <script>
+        function filterTeam() {
+            const select = document.getElementById("team");
+            const selectedTeam = select.value;
+            
+            // Redirect with team parameter
+            if (selectedTeam === "All Teams") {
+                window.location.href = "/";
+            } else {
+                window.location.href = "/?team=" + encodeURIComponent(selectedTeam);
+            }
+        }
+    </script>
+</body>
+</html>
