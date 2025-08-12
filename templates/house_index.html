@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+import os
+import sys
+from flask import Flask, render_template_string, request
+import pandas as pd
+import numpy as np
+
+# Create Flask app
+app = Flask(__name__)
+
+def load_house_data():
+    """Load house odds data"""
+    data_file = 'data/house_odds_2025.csv'
+    
+    if not os.path.exists(data_file):
+        print(f"❌ Error: {data_file} not found!")
+        return None
+    
+    try:
+        df = pd.read_csv(data_file)
+        print(f"✅ House odds loaded: {df.shape}")
+        return df
+    except Exception as e:
+        print(f"❌ Error loading data: {e}")
+        return None
+
+def calculate_house_metrics(df):
+    """Calculate house profitability metrics"""
+    if df is None or len(df) == 0:
+        return {
+            'house_profit_per_bet': 0,
+            'profitable_games': 0,
+            'house_margin': 0.05,
+            'daily_revenue': 0,
+            'house_win_rate': 0
+        }
+    
+    total_profit = 0
+    profitable_games = 0
+    
+    for _, row in df.iterrows():
+        home_prob = row['Home Win %']
+        away_prob = row['Away Win %']
+        home_odds = row['Home Odds']
+        away_odds = row['Away Odds']
+        
+        # Calculate house expected profit per $1 bet
+        home_house_profit = (1 - home_prob) * 1 - home_prob * (home_odds - 1)
+        away_house_profit = (1 - away_prob) * 1 - away_prob * (away_odds - 1)
+        avg_profit = (home_house_profit + away_house_profit) / 2
+        
+        total_profit += avg_profit
+        if avg_profit > 0:
+            profitable_games += 1
+    
+    house_profit_per_bet = total_profit / len(df)
+    house_win_rate = profitable_games / len(df)
+    
+    # Estimate daily revenue (assuming 10,000 bets per game, games spread over year)
+    daily_games = len(df) / 365
+    daily_revenue = house_profit_per_bet * 10000 * daily_games
+    
+    return {
+        'house_profit_per_bet': house_profit_per_bet,
+        'profitable_games': profitable_games,
+        'house_margin': 0.05,  # Fixed 5% margin
+        'daily_revenue': daily_revenue,
+        'house_win_rate': house_win_rate
+    }
+
+# HTML Template
+HTML_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>House Edge Management System</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #1e3c72;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .house-banner {
+            background: linear-gradient(135deg, 
+                {% if house_profit_per_bet >= 0.05 %}#4caf50 0%, #45a049 100%{% else %}#ff9800 0%, #f57c00 100%{% endif %});
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        
+        .profit-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .profit-card {
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .profit-card.warning {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        }
+        
+        .profit-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .profit-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .filter-container {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        select {
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+            min-width: 200px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0

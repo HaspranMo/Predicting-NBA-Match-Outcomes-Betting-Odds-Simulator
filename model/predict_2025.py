@@ -4,12 +4,26 @@ import joblib
 import argparse
 import os
 
+def prob_to_odds(p, margin=0.05):
+    """
+    Calculate house odds ensuring 5% margin
+    Given win probability 'p', return adjusted odds that give the house a fixed margin
+    """
+    p = min(max(p, 0.01), 0.99)  # avoid extreme values
+    fair_odds = 1 / p
+    adjusted_odds = fair_odds * (1 - margin)  # house takes margin
+    return round(adjusted_odds, 2)
+
 # Parse command-line arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('--model', choices=['logistic', 'xgb'], default='logistic',
-                    help='Choose model: logistic or xgb (default: logistic)')
+parser.add_argument('--model', choices=['logistic', 'xgb'], default='xgb',
+                    help='Choose model: logistic or xgb (default: xgb)')
 args = parser.parse_args()
 model_type = args.model
+
+print(f"🏦 Generating House Profitable Odds for 2025 Season")
+print(f"📊 Using {model_type.upper()} model with 5% house margin")
+print("="*60)
 
 # Load trained model
 model_path = f'model/{model_type}_pipeline.pkl'
@@ -68,21 +82,24 @@ X_future = games[features]
 X_future = X_future.dropna()
 games_clean = games.loc[X_future.index]
 
+print(f"📈 Predicting outcomes for {len(X_future)} games")
+
 # Predict probabilities
 try:
     home_win_prob = model.predict_proba(X_future)[:, 1]
     games_clean['HOME_WIN_PROB'] = home_win_prob
     games_clean['AWAY_WIN_PROB'] = 1 - home_win_prob
+
+    # CRITICAL: Calculate house-favorable odds with 5% margin
+    margin = 0.05  # House margin - DO NOT CHANGE
+    games_clean['HOME_ODDS'] = games_clean['HOME_WIN_PROB'].apply(lambda p: prob_to_odds(p, margin))
+    games_clean['AWAY_ODDS'] = games_clean['AWAY_WIN_PROB'].apply(lambda p: prob_to_odds(p, margin))
     
-    # Convert to betting odds
-    games_clean['HOME_ODDS'] = 1 / games_clean['HOME_WIN_PROB']
-    games_clean['AWAY_ODDS'] = 1 / games_clean['AWAY_WIN_PROB']
+    print(f"💰 House Margin Applied: {margin:.1%}")
+    print(f"🎯 Odds calculated to ensure house profitability")
     
 except Exception as e:
-    print(f"Error during prediction: {e}")
-    print(f"Expected features: {features}")
-    print(f"Available features: {X_future.columns.tolist()}")
-    print(f"X_future shape: {X_future.shape}")
+    print(f"❌ Error during prediction: {e}")
     raise
 
 # Prepare output
@@ -91,7 +108,25 @@ output = games_clean[['TEAM_NAME_HOME', 'HOME_WIN_PROB', 'HOME_ODDS',
 output.columns = ['Home', 'Home Win %', 'Home Odds', 'Away', 'Away Win %', 'Away Odds']
 
 # Save output
-output.to_csv('data/predicted_odds_2025.csv', index=False)
-print("Predictions saved to data/predicted_odds_2025.csv")
-print(f"Total predictions: {len(output)}")
-print(f"Model type used: {model_type}")
+output.to_csv('data/house_odds_2025.csv', index=False)
+print(f"\n✅ House-profitable odds saved to data/house_odds_2025.csv")
+print(f"📊 Total games for betting: {len(output)}")
+print(f"🏦 Model type used: {model_type}")
+
+# Quick house profit analysis
+print(f"\n💡 HOUSE PROFIT PREVIEW:")
+sample_analysis = []
+for _, row in output.head(5).iterrows():
+    home_prob = row['Home Win %']
+    away_prob = row['Away Win %']
+    home_odds = row['Home Odds']
+    away_odds = row['Away Odds']
+    
+    # Calculate expected house profit per $1 bet (50/50 split assumption)
+    home_house_profit = (1 - home_prob) * 1 - home_prob * (home_odds - 1)
+    away_house_profit = (1 - away_prob) * 1 - away_prob * (away_odds - 1)
+    avg_profit = (home_house_profit + away_house_profit) / 2
+    
+    print(f"   {row['Home']} vs {row['Away']}: ${avg_profit:.4f} profit per $1 bet")
+
+print(f"\n🎰 Run house profit analysis: python house_profit_simulator.py")
